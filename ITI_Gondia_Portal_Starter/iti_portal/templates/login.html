@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>Login</h2>
+<form method="post">
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
+    <input class="input" type="text" name="username" placeholder="Username" required>
+    <input class="input" type="password" name="password" placeholder="Password" required>
+    <button class="btn btn-primary" type="submit">Login</button>
+  </div>
+  {% if error %}<div style="color:#dc2626;">{{ error }}</div>{% endif %}
+  <p>Demo users: <b>admin/admin123</b>, <b>viewer/view123</b></p>
+{% endblock %}

@@ -1,0 +1,11 @@
+StudentID,StudentName,Gender,Category,Trade,AcademicYear,Result,CurrentStatus,StatusDetails,ContactNo,Email,LastUpdated,Remarks,HideContact,HideEmail
+ITI1001,Aarav Gupta,M,Engineering,Electrician,2021-22,Pass,Apprenticeship,WCL – Nagpur,9xxxxxxxxx1,aarav@example.com,2025-09-29,,0,0
+ITI1002,Priya Sharma,F,Engineering,Fitter,2021-22,Pass,Placement,Tata Motors – Pune,9xxxxxxxxx2,priya@example.com,2025-09-29,,0,0
+ITI1003,Rohan Verma,M,Non-Engineering,COPA,2022-23,Pass,Higher Education,BSc – CS,9xxxxxxxxx3,rohan@example.com,2025-09-29,,1,1
+ITI1004,Saniya Khan,F,Engineering,Wireman,2022-23,Fail,Unplaced,,,,2025-09-29,Fail in trade test,1,1
+ITI1005,Vikram Patil,M,Engineering,Welder,2023-24,Pass,Self-Employed,Own Workshop – Gondia,9xxxxxxxxx5,vikram@example.com,2025-09-29,,0,1
+ITI1006,Anita Joshi,F,Engineering,Electrician,2020-21,Pass,Placement,Mahindra – Nashik,9xxxxxxxxx6,anita@example.com,2025-09-29,,0,0
+ITI1007,Nikhil Rao,M,Engineering,Fitter,2020-21,Pass,Apprenticeship,Hindustan Aeronautics,9xxxxxxxxx7,nikhil@example.com,2025-09-29,,0,0
+ITI1008,Pooja Deshmukh,F,Non-Engineering,COPA,2023-24,Fail,Unplaced,,,,2025-09-29,,1,1
+ITI1009,Sagar Kale,M,Engineering,Wireman,2024-25,Pass,Placement,Larsen & Toubro – Mumbai,9xxxxxxxxx9,sagar@example.com,2025-09-29,,0,0
+ITI1010,Meera Naik,F,Engineering,Electrician,2024-25,Pass,Higher Education,Diploma – Electrical,9xxxxxxxxx0,meera@example.com,2025-09-29,,0,0

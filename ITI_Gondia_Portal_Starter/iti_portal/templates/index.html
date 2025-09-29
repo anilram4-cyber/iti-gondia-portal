@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>Search & Monitoring</h2>
+
+<div class="kpi">
+  <div class="card">Total Trainees: <b>{{ kpi.total }}</b></div>
+  <div class="card">Pass: <span class="badge pass">{{ kpi.pass_count }}</span></div>
+  <div class="card">Fail: <span class="badge fail">{{ kpi.fail_count }}</span></div>
+  <div class="card">Unplaced: <span class="badge unplaced">{{ kpi.unplaced }}</span></div>
+</div>
+
+<form method="get">
+  <div class="filters">
+    <select name="year">
+      <option value="">Academic Year</option>
+      {% for y in filters.years %}
+        <option value="{{ y }}" {{ 'selected' if y==query.year else '' }}>{{ y }}</option>
+      {% endfor %}
+    </select>
+    <select name="trade">
+      <option value="">Trade</option>
+      {% for t in filters.trades %}
+        <option value="{{ t }}" {{ 'selected' if t==query.trade else '' }}>{{ t }}</option>
+      {% endfor %}
+    </select>
+    <select name="status">
+      <option value="">Current Status</option>
+      {% for s in filters.statuses %}
+        <option value="{{ s }}" {{ 'selected' if s==query.status else '' }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <select name="result">
+      <option value="">Result</option>
+      {% for r in ['Pass','Fail'] %}
+        <option value="{{ r }}" {{ 'selected' if r==query.result else '' }}>{{ r }}</option>
+      {% endfor %}
+    </select>
+    <select name="category">
+      <option value="">Category</option>
+      {% for c in filters.categories %}
+        <option value="{{ c }}" {{ 'selected' if c==query.category else '' }}>{{ c }}</option>
+      {% endfor %}
+    </select>
+    <input class="input" type="text" name="q" placeholder="Search name/id/company..." value="{{ query.q or '' }}"/>
+    <button class="btn btn-primary" type="submit">Search</button>
+    <a class="btn btn-secondary" href="{{ url_for('index') }}">Reset</a>
+    <a class="btn btn-secondary" href="{{ url_for('export_data', fmt='csv', **query.to_dict()) }}">Export CSV</a>
+    <a class="btn btn-secondary" href="{{ url_for('export_data', fmt='xlsx', **query.to_dict()) }}">Export Excel</a>
+  </div>
+</form>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>StudentID</th>
+      <th>StudentName</th>
+      <th>Trade</th>
+      <th>AcademicYear</th>
+      <th>Result</th>
+      <th>CurrentStatus</th>
+      <th>StatusDetails</th>
+      <th>ContactNo</th>
+      <th>Email</th>
+      <th>LastUpdated</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.StudentID }}</td>
+      <td>{{ r.StudentName }}</td>
+      <td>{{ r.Trade }}</td>
+      <td>{{ r.AcademicYear }}</td>
+      <td><span class="badge {{ 'pass' if r.Result=='Pass' else 'fail' }}">{{ r.Result }}</span></td>
+      <td>{{ r.CurrentStatus }}</td>
+      <td>{{ r.StatusDetails }}</td>
+      <td>{{ r.ContactNo }}</td>
+      <td>{{ r.Email }}</td>
+      <td>{{ r.LastUpdated }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if not rows %}
+  <p>No records found.</p>
+{% endif %}
+
+{% endblock %}
