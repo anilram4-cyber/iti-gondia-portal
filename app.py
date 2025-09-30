@@ -62,6 +62,18 @@ def index():
 @app.route('/', methods=['GET'])
 @login_required
 def index():
-    ...
+ @app.route('/', methods=['GET'])
+@login_required
+def index():
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM trainees").fetchall()
+    conn.close()
+    # summary calculation …
+    return render_template('index.html', rows=rows,
+                           total=total, passed=passed, failed=failed,
+                           apprenticeship=apprenticeship, employment=employment,
+                           higher=higher, selfemp=selfemp)
+   ...
+
 
 
