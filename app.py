@@ -46,7 +46,11 @@ def logout():
     session.pop('user',None)
     return redirect(url_for('login'))
 
-def login_required(f):
+def @app.route('/', methods=['GET'])
+@login_required
+def index():
+    ...
+(f):
     from functools import wraps
     @wraps(f)
     def decorated(*args,**kwargs):
@@ -56,4 +60,8 @@ def login_required(f):
     return decorated
 
 @app.route('/', methods=['GET'])
-@logi
+@login_required
+def index():
+    ...
+
+
