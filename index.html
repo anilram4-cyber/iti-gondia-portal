@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="cards">
+  <div class="card">Total Trainees: {{ total }}</div>
+  <div class="card">Pass: {{ passed }}</div>
+  <div class="card">Fail: {{ failed }}</div>
+  <div class="card">Apprenticeship: {{ apprenticeship }}</div>
+  <div class="card">Employment: {{ employment }}</div>
+  <div class="card">Higher Education: {{ higher }}</div>
+  <div class="card">Self Employment: {{ selfemp }}</div>
+</div>
+
+<form method="get" action="/">
+  <label for="year">Year:</label>
+  <select name="year">
+    <option value="">All</option>
+    {% for r in rows|map(attribute='Year')|unique %}
+    <option value="{{r}}">{{r}}</option>
+    {% endfor %}
+  </select>
+
+  <label for="trade">Trade:</label>
+  <select name="trade">
+    <option value="">All</option>
+    {% for r in rows|map(attribute='Trade name')|unique %}
+    <option value="{{r}}">{{r}}</option>
+    {% endfor %}
+  </select>
+
+  <label for="result">Result:</label>
+  <select name="result">
+    <option value="">All</option>
+    <option value="Pass">Pass</option>
+    <option value="Fail">Fail</option>
+  </select>
+  <button type="submit">Filter</button>
+</form>
+
+<canvas id="statusChart" width="400" height="150"></canvas>
+
+<table border="1" cellpadding="5" cellspacing="0">
+  <thead>
+    <tr>
+      {% for col in rows[0].keys() %}
+      <th>{{ col }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      {% for col in row.keys() %}
+      <td>{{ row[col] }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('statusChart');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Pass','Fail','Apprenticeship','Employment','HigherEdu','SelfEmp'],
+      datasets: [{
+        label: 'Counts',
+        data: [{{passed}},{{failed}},{{apprenticeship}},{{employment}},{{higher}},{{selfemp}}],
+        backgroundColor: 'rgba(54, 162, 235, 0.5)'
+      }]
+    },
+    options: {scales: {y: {beginAtZero:true}}}
+  });
+</script>
+{% endblock %}
