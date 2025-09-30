@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS trainees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    "ITI code" TEXT,
+    "ITI Name" TEXT,
+    "District" TEXT,
+    "Roll No." TEXT,
+    "TraineeName" TEXT,
+    "Trade name" TEXT,
+    "Trade code" TEXT,
+    "Course Duration" TEXT,
+    "session" TEXT,
+    "Year" TEXT,
+    "Mobile No" TEXT,
+    "Email" TEXT,
+    "Result Pass/Fail" TEXT,
+    "Apprenticeship Yes/No" TEXT,
+    "Employment Yes/No" TEXT,
+    "Self Employment Yes/No" TEXT,
+    "Higher Education Yes/No" TEXT,
+    "Other" TEXT,
+    "Remark" TEXT
+);
