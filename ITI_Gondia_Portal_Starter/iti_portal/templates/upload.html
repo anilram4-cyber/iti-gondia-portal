@@ -1,11 +1,13 @@
 {% extends "layout.html" %}
 {% block content %}
-<h2>Upload CSV (Admin)</h2>
-<form method="post" enctype="multipart/form-data">
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
-    <input type="file" name="file" accept=".csv" required>
-    <label><input type="checkbox" name="replace" value="1"> Replace all data</label>
-    <button class="btn btn-primary" type="submit">Upload</button>
-  </div>
-  <p>Expected columns: <code>StudentID,StudentName,Gender,Category,Trade,AcademicYear,Result,CurrentStatus,StatusDetails,ContactNo,Email,LastUpdated,Remarks,HideContact,HideEmail</code></p>
+<h2>Upload Trainee Data</h2>
+
+<form method="post" enctype="multipart/form-data" style="margin-top:20px;">
+  <input type="file" name="file" accept=".csv,.xlsx" required>
+  <input type="submit" value="Upload">
+</form>
+
+<p style="margin-top:10px;">
+Download template CSV: <a href="{{ url_for('download_template') }}">Click here</a>
+</p>
 {% endblock %}
