@@ -1,233 +1,199 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, jsonify
-import sqlite3, os, io, csv, datetime as dt
+import os
+import sqlite3
 import pandas as pd
-import xlsxwriter
-
-APP_SECRET = "change-me"
-DB_PATH = "portal.db"
-
-def get_db():
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    return con
-
-def init_db():
-    with open("schema.sql","r") as f:
-        sql = f.read()
-    con = get_db()
-    con.executescript(sql)
-    con.commit()
-    con.close()
-
-def ensure_db():
-    if not os.path.exists(DB_PATH):
-        init_db()
-
-def mask_value(val, hide_flag, is_admin):
-    if is_admin:
-        return val or ""
-    if hide_flag:
-        return "NA"
-    # viewer: default is allowed but blank -> "NA" if empty?
-    return val if (val and val.strip()) else "NA"
-
-def fetch_filters(con):
-    years = [r["AcademicYear"] for r in con.execute("SELECT DISTINCT AcademicYear FROM trainees ORDER BY AcademicYear").fetchall()]
-    trades = [r["Trade"] for r in con.execute("SELECT DISTINCT Trade FROM trainees ORDER BY Trade").fetchall()]
-    statuses = [r["CurrentStatus"] for r in con.execute("SELECT DISTINCT CurrentStatus FROM trainees ORDER BY CurrentStatus").fetchall()]
-    cats = [r["Category"] for r in con.execute("SELECT DISTINCT Category FROM trainees ORDER BY Category").fetchall()]
-    return {"years": years, "trades": trades, "statuses": statuses, "categories": cats}
-
-def build_where(args):
-    wh = []
-    params = []
-    if args.get("year"):
-        wh.append("AcademicYear=?"); params.append(args["year"])
-    if args.get("trade"):
-        wh.append("Trade=?"); params.append(args["trade"])
-    if args.get("status"):
-        wh.append("CurrentStatus=?"); params.append(args["status"])
-    if args.get("result"):
-        wh.append("Result=?"); params.append(args["result"])
-    if args.get("category"):
-        wh.append("Category=?"); params.append(args["category"])
-    if args.get("q"):
-        wh.append("(StudentName LIKE ? OR StudentID LIKE ? OR StatusDetails LIKE ?)")
-        q = f"%{args['q']}%"; params += [q,q,q]
-    where = " WHERE " + " AND ".join(wh) if wh else ""
-    return where, params
-
-def kpis(con, where="", params=None):
-    params = params or []
-    total = con.execute(f"SELECT COUNT(*) c FROM trainees {where}", params).fetchone()["c"]
-    pass_count = con.execute(f"SELECT COUNT(*) c FROM trainees {where} AND Result='Pass'" if where else "SELECT COUNT(*) c FROM trainees WHERE Result='Pass'", params).fetchone()["c"]
-    fail_count = con.execute(f"SELECT COUNT(*) c FROM trainees {where} AND Result='Fail'" if where else "SELECT COUNT(*) c FROM trainees WHERE Result='Fail'", params).fetchone()["c"]
-    unplaced = con.execute(f"SELECT COUNT(*) c FROM trainees {where} AND CurrentStatus='Unplaced'" if where else "SELECT COUNT(*) c FROM trainees WHERE CurrentStatus='Unplaced'", params).fetchone()["c"]
-    return {"total": total, "pass_count": pass_count, "fail_count": fail_count, "unplaced": unplaced}
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
+from werkzeug.utils import secure_filename
+from io import BytesIO
 
 app = Flask(__name__)
-app.secret_key = APP_SECRET
+app.secret_key = 'change_this_secret'  # अपने secret key से बदलें
 
+DB_FILE = 'trainees.db'
+
+# ---------- DB Init ----------
+def init_db():
+    with sqlite3.connect(DB_FILE) as conn:
+        c = conn.cursor()
+        c.execute('''
+        CREATE TABLE IF NOT EXISTS trainees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            iti_code TEXT,
+            iti_name TEXT,
+            district TEXT,
+            roll_no TEXT,
+            trainee_name TEXT,
+            trade_name TEXT,
+            trade_code TEXT,
+            course_duration TEXT,
+            session TEXT,
+            year TEXT,
+            mobile_no TEXT,
+            result TEXT,
+            apprenticeship TEXT,
+            employment TEXT,
+            self_employment TEXT,
+            higher_education TEXT,
+            other TEXT,
+            remark TEXT
+        )
+        ''')
+    print("DB initialized.")
+
+init_db()
+
+# Dummy users (admin/principal)
 USERS = {
-    "admin": {"password":"admin123", "role":"admin"},
-    "viewer": {"password":"view123", "role":"viewer"}
+    'admin': 'admin123',
+    'principal': 'principal123'
 }
 
-@app.context_processor
-def inject_year():
-    return {"year": dt.date.today().year}
+# ---------- Login Required ----------
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
-@app.route("/login", methods=["GET","POST"])
+# ---------- Routes ----------
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method=="POST":
-        u = request.form.get("username","").strip()
-        p = request.form.get("password","").strip()
-        user = USERS.get(u)
-        if user and user["password"] == p:
-            session["user"] = u
-            session["role"] = user["role"]
-            return redirect(url_for("index"))
-        return render_template("login.html", error="Invalid credentials")
-    return render_template("login.html", error=None)
+    if request.method == 'POST':
+        uname = request.form['username']
+        pwd = request.form['password']
+        if uname in USERS and USERS[uname] == pwd:
+            session['username'] = uname
+            flash('Logged in successfully!', 'info')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid credentials', 'error')
+    return render_template('login.html')
 
-@app.route("/logout")
+@app.route('/logout')
 def logout():
-    session.clear()
-    return redirect(url_for("login"))
+    session.pop('username', None)
+    flash('Logged out successfully', 'info')
+    return redirect(url_for('login'))
 
-@app.route("/", methods=["GET"])
+@app.route('/')
+@login_required
 def index():
-    ensure_db()
-    if not session.get("user"):
-        return redirect(url_for("login"))
-    con = get_db()
-    filters = fetch_filters(con)
-    args = {k: request.args.get(k,"").strip() or "" for k in ["year","trade","status","result","category","q"]}
-    where, params = build_where(args)
-    rows = con.execute(f"SELECT * FROM trainees {where} ORDER BY AcademicYear DESC, Trade, StudentName LIMIT 1000", params).fetchall()
-    is_admin = session.get("role")=="admin"
-    masked = []
-    for r in rows:
-        masked.append({
-            "StudentID": r["StudentID"],
-            "StudentName": r["StudentName"],
-            "Trade": r["Trade"],
-            "AcademicYear": r["AcademicYear"],
-            "Result": r["Result"],
-            "CurrentStatus": r["CurrentStatus"],
-            "StatusDetails": r["StatusDetails"],
-            "ContactNo": mask_value(r["ContactNo"], r["HideContact"], is_admin),
-            "Email": mask_value(r["Email"], r["HideEmail"], is_admin),
-            "LastUpdated": r["LastUpdated"],
-        })
-    stats = kpis(con, where, params)
-    con.close()
-    class Q: pass
-    q = Q(); q.year=args["year"]; q.trade=args["trade"]; q.status=args["status"]; q.result=args["result"]; q.category=args["category"]; q.q=args["q"]
-    q.to_dict = lambda: {"year":q.year,"trade":q.trade,"status":q.status,"result":q.result,"category":q.category,"q":q.q}
-    return render_template("index.html", rows=masked, filters=filters, query=q, kpi=stats)
+    with sqlite3.connect(DB_FILE) as conn:
+        df = pd.read_sql_query("SELECT * FROM trainees", conn)
 
-@app.route("/upload", methods=["GET","POST"])
-def upload():
-    ensure_db()
-    if session.get("role")!="admin":
-        return redirect(url_for("index"))
-    if request.method=="POST":
-        f = request.files.get("file")
-        if not f:
-            return "No file", 400
-        df = pd.read_csv(f)
-        required = ["StudentID","StudentName","Gender","Category","Trade","AcademicYear","Result","CurrentStatus","StatusDetails","ContactNo","Email","LastUpdated","Remarks","HideContact","HideEmail"]
-        missing = [c for c in required if c not in df.columns]
-        if missing:
-            return f"Missing columns: {missing}", 400
-        df = df[required].fillna("")
-        con = get_db()
-        if request.form.get("replace")=="1":
-            con.execute("DELETE FROM trainees")
-            con.commit()
-        for _, row in df.iterrows():
-            con.execute("""INSERT INTO trainees
-                (StudentID,StudentName,Gender,Category,Trade,AcademicYear,Result,CurrentStatus,StatusDetails,ContactNo,Email,LastUpdated,Remarks,HideContact,HideEmail)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (row["StudentID"],row["StudentName"],row["Gender"],row["Category"],row["Trade"],row["AcademicYear"],row["Result"],row["CurrentStatus"],row["StatusDetails"],
-                 row["ContactNo"],row["Email"],row["LastUpdated"],row["Remarks"],int(row["HideContact"] or 0),int(row["HideEmail"] or 0))
-            )
-        con.commit()
-        con.close()
-        return redirect(url_for("index"))
-    return render_template("upload.html")
-
-@app.route("/export")
-def export_data():
-    ensure_db()
-    if not session.get("user"):
-        return redirect(url_for("login"))
-    fmt = request.args.get("fmt","csv")
-    con = get_db()
-    args = {k: request.args.get(k,"").strip() or "" for k in ["year","trade","status","result","category","q"]}
-    where, params = build_where(args)
-    rows = con.execute(f"SELECT * FROM trainees {where} ORDER BY AcademicYear DESC, Trade, StudentName", params).fetchall()
-    is_admin = session.get("role")=="admin"
-    con.close()
-
-    records = []
-    for r in rows:
-        records.append({
-            "StudentID": r["StudentID"],
-            "StudentName": r["StudentName"],
-            "Gender": r["Gender"],
-            "Category": r["Category"],
-            "Trade": r["Trade"],
-            "AcademicYear": r["AcademicYear"],
-            "Result": r["Result"],
-            "CurrentStatus": r["CurrentStatus"],
-            "StatusDetails": r["StatusDetails"],
-            "ContactNo": mask_value(r["ContactNo"], r["HideContact"], is_admin),
-            "Email": mask_value(r["Email"], r["HideEmail"], is_admin),
-            "LastUpdated": r["LastUpdated"],
-            "Remarks": r["Remarks"]
-        })
-    df = pd.DataFrame(records)
-    if fmt=="csv":
-        buf = io.StringIO()
-        df.to_csv(buf, index=False)
-        buf.seek(0)
-        return send_file(io.BytesIO(buf.getvalue().encode("utf-8")), as_attachment=True, download_name="trainees_export.csv", mimetype="text/csv")
+    if df.empty:
+        summary = {
+            'total': 0,
+            'passed': 0,
+            'failed': 0,
+            'apprenticeship': 0,
+            'employment': 0,
+            'self_employment': 0,
+            'higher_education': 0
+        }
     else:
-        out = io.BytesIO()
-        with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
-            df.to_excel(writer, index=False, sheet_name="Trainees")
-        out.seek(0)
-        return send_file(out, as_attachment=True, download_name="trainees_export.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        summary = {
+            'total': len(df),
+            'passed': (df['result'].str.lower() == 'pass').sum(),
+            'failed': (df['result'].str.lower() == 'fail').sum(),
+            'apprenticeship': (df['apprenticeship'].str.lower() == 'yes').sum(),
+            'employment': (df['employment'].str.lower() == 'yes').sum(),
+            'self_employment': (df['self_employment'].str.lower() == 'yes').sum(),
+            'higher_education': (df['higher_education'].str.lower() == 'yes').sum()
+        }
 
-@app.route("/api/trainees")
-def api_trainees():
-    ensure_db()
-    if not session.get("user"):
-        return jsonify({"error":"unauthorized"}), 401
-    con = get_db()
-    args = {k: request.args.get(k,"").strip() or "" for k in ["year","trade","status","result","category","q"]}
-    where, params = build_where(args)
-    rows = con.execute(f"SELECT * FROM trainees {where} LIMIT 1000", params).fetchall()
-    is_admin = session.get("role")=="admin"
-    data = []
-    for r in rows:
-        data.append({
-            "StudentID": r["StudentID"],
-            "StudentName": r["StudentName"],
-            "Trade": r["Trade"],
-            "AcademicYear": r["AcademicYear"],
-            "Result": r["Result"],
-            "CurrentStatus": r["CurrentStatus"],
-            "StatusDetails": r["StatusDetails"],
-            "ContactNo": mask_value(r["ContactNo"], r["HideContact"], is_admin),
-            "Email": mask_value(r["Email"], r["HideEmail"], is_admin),
-            "LastUpdated": r["LastUpdated"]
-        })
-    con.close()
-    return jsonify(data)
+    return render_template('index.html', summary=summary)
 
-if __name__ == "__main__":
-    ensure_db()
-    app.run(debug=True)
+@app.route('/upload', methods=['GET', 'POST'])
+@login_required
+def upload():
+    if request.method == 'POST':
+        file = request.files['file']
+        if not file:
+            flash('No file selected', 'error')
+            return redirect(request.url)
+
+        filename = secure_filename(file.filename)
+        ext = os.path.splitext(filename)[1].lower()
+        try:
+            if ext == '.csv':
+                df = pd.read_csv(file)
+            elif ext in ['.xls', '.xlsx']:
+                df = pd.read_excel(file)
+            else:
+                flash('Only CSV or Excel files allowed', 'error')
+                return redirect(request.url)
+        except Exception as e:
+            flash(f'Error reading file: {e}', 'error')
+            return redirect(request.url)
+
+        # Insert into DB
+        with sqlite3.connect(DB_FILE) as conn:
+            for _, row in df.iterrows():
+                conn.execute('''
+                INSERT INTO trainees (
+                    iti_code, iti_name, district, roll_no, trainee_name,
+                    trade_name, trade_code, course_duration, session, year,
+                    mobile_no, result, apprenticeship, employment,
+                    self_employment, higher_education, other, remark
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ''', (
+                    row.get('ITI code',''),
+                    row.get('ITI Name',''),
+                    row.get('District',''),
+                    row.get('Roll No.',''),
+                    row.get('TraineeName',''),
+                    row.get('Trade name',''),
+                    row.get('Trade code',''),
+                    row.get('Course Duration',''),
+                    row.get('session',''),
+                    row.get('Year',''),
+                    row.get('Mobile No',''),
+                    row.get('Result Pass /Fail',''),
+                    row.get('Apprenticeship  Yes/No',''),
+                    row.get('Employment( Yes /NO)',''),
+                    row.get('Self Employment( Yes /NO)',''),
+                    row.get('Higher Education( Yes /NO)',''),
+                    row.get('Other',''),
+                    row.get('Remark','')
+                ))
+            conn.commit()
+
+        flash('Data uploaded successfully', 'info')
+        return redirect(url_for('index'))
+
+    return render_template('upload.html')
+
+@app.route('/download_template')
+@login_required
+def download_template():
+    cols = [
+        'ITI code','ITI Name','District','Roll No.','TraineeName',
+        'Trade name','Trade code','Course Duration','session','Year',
+        'Mobile No','Result Pass /Fail','Apprenticeship  Yes/No',
+        'Employment( Yes /NO)','Self Employment( Yes /NO)',
+        'Higher Education( Yes /NO)','Other','Remark'
+    ]
+    df = pd.DataFrame(columns=cols)
+    output = BytesIO()
+    df.to_csv(output, index=False)
+    output.seek(0)
+    return send_file(output, mimetype='text/csv', as_attachment=True,
+                     download_name='iti_template.csv')
+
+@app.route('/download')
+@login_required
+def download():
+    with sqlite3.connect(DB_FILE) as conn:
+        df = pd.read_sql_query("SELECT * FROM trainees", conn)
+    output = BytesIO()
+    df.to_csv(output, index=False)
+    output.seek(0)
+    return send_file(output, mimetype='text/csv', as_attachment=True,
+                     download_name='trainees_data.csv')
+
+# ---------- Main ----------
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
