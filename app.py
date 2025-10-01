@@ -75,3 +75,8 @@ def upload():
 # -------- Run local ----------
 if __name__ == "__main__":
     app.run(debug=True)
+
+@app.route('/dashboard')
+def dashboard():
+    # Example: show dashboard page
+    return render_template('index.html')
