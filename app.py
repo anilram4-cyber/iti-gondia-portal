@@ -1,59 +1,48 @@
-import os
-import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, flash
 import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash
-from werkzeug.utils import secure_filename
-import json
-from io import BytesIO
-import xlsxwriter
+import os
 
 app = Flask(__name__)
-app.secret_key = 'supersecretkey'
+app.secret_key = "your_secret_key"  # session/flash के लिए
 
-DB_PATH = 'trainees.db'
-USERS_FILE = 'users.json'
+# -------- Home page ----------
+@app.route('/')
+def home():
+    return render_template('index.html')
 
-# ensure db exists
-if not os.path.exists(DB_PATH):
-    conn = sqlite3.connect(DB_PATH)
-    with open('schema.sql', 'r') as f:
-        conn.executescript(f.read())
-    conn.close()
-
-# load users
-with open(USERS_FILE, 'r') as f:
-    users = json.load(f)
-
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-@app.route('/login', methods=['GET','POST'])
+# -------- Login page ----------
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        for u in users:
-            if u['username']==username and u['password']==password:
-                session['user']=u
-                return redirect(url_for('index'))
-        flash("Invalid credentials")
+        username = request.form.get('username')
+        password = request.form.get('password')
+        # TODO: यहां users.json से verify करना है
+        if username == "admin" and password == "123":
+            flash("Login successful!", "success")
+            return redirect(url_for('home'))
+        else:
+            flash("Invalid credentials!", "danger")
     return render_template('login.html')
 
-@app.route('/logout')
-def logout():
-    session.pop('user',None)
-    return redirect(url_for('login'))
+# -------- Upload page ----------
+@app.route('/upload', methods=['GET', 'POST'])
+def upload():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash("No file part", "danger")
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            flash("No selected file", "danger")
+            return redirect(request.url)
+        if file:
+            filepath = os.path.join("uploads", file.filename)
+            os.makedirs("uploads", exist_ok=True)
+            file.save(filepath)
+            flash("File uploaded successfully!", "success")
+            return redirect(url_for('home'))
+    return render_template('upload.html')
 
-def login_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args,**kwargs):
-        if 'user' not in session:
-            return redirect(url_for('login'))
-        return f(*args,**kwargs)
-    return decorated
-
-@app.route('/', methods=['GET'])
-@logi
+# --------- Run app locally ----------
+if __name__ == '__main__':
+    app.run(debug=True)
