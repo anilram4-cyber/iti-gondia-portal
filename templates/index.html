@@ -1,7 +1,19 @@
 {% extends "layout.html" %}
 {% block content %}
 <h2>Dashboard</h2>
-<p>Total Trainees: {{ total }}</p>
-<p>Pass: {{ pass_count }}</p>
-<p>Fail: {{ fail_count }}</p>
+<p>Total Trainees: {{total}}</p>
+<p>Pass: {{pass_count}} | Fail: {{fail_count}} | Apprenticeship: {{app_count}} | Job: {{job_count}}</p>
+<table border="1">
+  <tr>
+    <th>Name</th><th>ITI Name</th><th>Trade</th><th>Status</th>
+  </tr>
+  {% for row in table %}
+  <tr>
+    <td>{{row.name}}</td>
+    <td>{{row.iti_name}}</td>
+    <td>{{row.trade}}</td>
+    <td>{{row.status}}</td>
+  </tr>
+  {% endfor %}
+</table>
 {% endblock %}
