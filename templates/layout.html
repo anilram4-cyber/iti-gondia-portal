@@ -1,29 +1,27 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <title>ITI Gondia Portal</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <nav>
     <a href="{{ url_for('index') }}">Dashboard</a>
-    {% if session.get('user') %}
-      {% if session.get('user')['role'] in ['admin','principal'] %}
-        <a href="{{ url_for('upload') }}">Upload</a>
-      {% endif %}
-      <span>Logged in as {{ session.get('user')['username'] }}</span>
+    <a href="{{ url_for('upload') }}">Upload</a>
+    {% if session.get('username') %}
       <a href="{{ url_for('logout') }}">Logout</a>
+    {% else %}
+      <a href="{{ url_for('login') }}">Login</a>
     {% endif %}
   </nav>
+
   <div class="container">
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <ul class="flashes">
-        {% for message in messages %}
-          <li>{{ message }}</li>
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
         {% endfor %}
-        </ul>
       {% endif %}
     {% endwith %}
     {% block content %}{% endblock %}
