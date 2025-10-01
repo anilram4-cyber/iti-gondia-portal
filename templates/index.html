@@ -1,10 +1,14 @@
 {% extends "layout.html" %}
 {% block content %}
 <h2>Dashboard</h2>
-<p>Welcome, {{ session.get('username') }}!</p>
+
+<p>Welcome to ITI Gondia Portal Dashboard.</p>
 
 <ul>
-  <li><a href="{{ url_for('upload') }}">Upload trainee data</a></li>
-  <li>Download reports, charts coming soon…</li>
+    <li>Total Students: {{ total_students if total_students else 0 }}</li>
+    <li>Pass Students: {{ pass_students if pass_students else 0 }}</li>
+    <li>Fail Students: {{ fail_students if fail_students else 0 }}</li>
 </ul>
+
+<p>Use the navigation above to upload data or view login page.</p>
 {% endblock %}
