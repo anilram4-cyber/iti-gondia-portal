@@ -10,5 +10,20 @@
 </form>
 {% endblock %}
 
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ITI Gondia Portal</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>ITI Gondia Portal</h1>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
 
 
