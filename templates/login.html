@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+
 {% block content %}
 <h2>Login</h2>
 <form method="post" action="/login">
@@ -9,21 +10,3 @@
   <input type="submit" value="Login">
 </form>
 {% endblock %}
-
-<!DOCTYPE html>
-<html>
-<head>
-  <title>ITI Gondia Portal</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-  <header>
-    <h1>ITI Gondia Portal</h1>
-  </header>
-  <main>
-    {% block content %}{% endblock %}
-  </main>
-</body>
-</html>
-
-
